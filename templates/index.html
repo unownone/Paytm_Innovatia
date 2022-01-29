@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <form id="rechargeForm" method="post">
+        {% csrf_token %}
+        <label for="number" class="control-label">Number</label><br>
+        <input type="text" name="number" id="number" class="form-control" value="{{ number }}" required placeholer="1234567890">
+        <br>
+        <label for="operator" class="control-label">Select Operator:</label><br>
+        <select name="operator" id="operator" class="form-control" required>
+            <option value="">Select Operator</option>
+            {% for ops in operator %}
+                <option value="{{ ops.id }}">{{ ops.name }}</option>
+            {% endfor %}
+        </select>
+        <br>
+        <div id="plans">
+            <label for="plan" class="control-label" style="text-overflow: ellipsis;">Select Plan:</label><br>
+            <select name="plan" id="plan" class="form-control" required>
+                <option value="">Select Plan</option>
+            </select>
+        </div>
+        <br>
+        <button type="submit" class="btn btn-secondary">Recharge</button>
+        <br>
+        <div id="price">
+        </div>
+    </form>
+</div>
+<script type="text/javascript">
+    var PlanData = {};
+    $(document).ready(function(){
+        $("#plans").hide();
+        $('#operator').change(function(){
+            var operator = $('#operator').val();
+            $.ajax({
+                url: '{% url "recharge:getPlans" provider=12345 %}'.replace(/12345/, operator.toString()),
+                type: 'GET',
+                success: function(data){
+                    console.log(data);
+                    var html = '';
+                    if(data['status']=='error'){
+                        html = '<option value="">No Plans Available</option>';
+                    }else{
+                        PlanData = data['plans'];
+                        for (let plans in PlanData) {
+                            console.log(plans)
+                            html += `<option value="${plans}">₹ ${PlanData[plans]['price']} : ${PlanData[plans]['details']} </option>`;
+                        }
+                    }
+                    $('#plan').html(html);
+                    $("#plans").show();
+                }
+            });
+        });
+        $('#plans').on('change', '#plan', function(){
+            var plan_id = $('#plan').val();
+            var dt = '';
+            for(let i in PlanData[plan_id]){
+                dt += `<p><b>${i}</b>:${PlanData[plan_id][i]}</p>`;
+            }
+            var html = `
+            <div class="plan-details">
+                <li>
+                    <h4>Plan Details</h4>
+                    ${dt}
+                </li>
+            </div>`;
+            $('#price').html(html);
+        });
+        $("#rechargeForm").submit(function(e){
+            e.preventDefault();
+            var formData = $(this).serialize();
+            $.ajax({
+                url: '{% url "recharge:recharge" %}',
+                type: 'POST',
+                data: formData,
+                success: function(data){
+                    console.log(data);
+                    alert(data['message']);
+                    $("#price").html('Status: '+data['message']+'<br>Reference ID: '+data['referenceID']);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
